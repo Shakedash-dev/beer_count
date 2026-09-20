@@ -3,6 +3,7 @@ import 'package:beer_count/data/settings_store.dart';
 import 'package:beer_count/data/widget_bridge.dart';
 import 'package:beer_count/ui/theme.dart';
 import 'package:beer_count/ui/timeline_screen.dart';
+import 'package:beer_count/ui/widgets/journey_timeline.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -31,8 +32,11 @@ void main() {
     await repo.load();
   });
 
-
   Future<void> pump(WidgetTester tester) async {
+    // Wide and tall enough that the whole journey is laid out at once.
+    tester.view.physicalSize = const Size(1400, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(
       MultiProvider(
         providers: [
@@ -48,12 +52,11 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('empty log shows the empty state and no day headers',
-      (tester) async {
+  testWidgets('empty log shows the journey start state', (tester) async {
     await pump(tester);
-    expect(find.text('NO BEERS YET'), findsOneWidget);
+    expect(find.text('THE JOURNEY STARTS HERE'), findsOneWidget);
     expect(find.text('TODAY'), findsNothing);
-    expect(find.text('0'), findsOneWidget);
+    expect(find.text('NOW'), findsNothing);
   });
 
   testWidgets('tapping the 1/3 button logs exactly one beer', (tester) async {
@@ -62,7 +65,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(repo.beers, hasLength(1));
     expect(repo.beers.single.ml, 333);
-    expect(find.text('1'), findsWidgets);
   });
 
   testWidgets('tapping the 1/2 button logs a 500ml beer', (tester) async {
@@ -72,21 +74,7 @@ void main() {
     expect(repo.beers.single.ml, 500);
   });
 
-  testWidgets('groups entries under day headers, newest day first',
-      (tester) async {
-    await repo.addAt(ml: 333, at: DateTime(2026, 9, 20, 18));
-    await repo.addAt(ml: 500, at: DateTime(2026, 9, 19, 20));
-    await pump(tester);
-    expect(find.text('TODAY'), findsOneWidget);
-    expect(find.text('YESTERDAY'), findsOneWidget);
-    expect(
-      tester.getTopLeft(find.text('TODAY')).dy,
-      lessThan(tester.getTopLeft(find.text('YESTERDAY')).dy),
-    );
-  });
-
-  testWidgets('shows today count and litres in the hero block',
-      (tester) async {
+  testWidgets('hero block shows today count and litres', (tester) async {
     await repo.addAt(ml: 500, at: DateTime(2026, 9, 20, 18));
     await repo.addAt(ml: 500, at: DateTime(2026, 9, 20, 19));
     await pump(tester);
@@ -105,29 +93,105 @@ void main() {
     expect(find.text('THIS WEEK'), findsNothing);
   });
 
-  testWidgets('swiping an entry deletes it and offers undo', (tester) async {
-    await repo.addAt(ml: 333, at: DateTime(2026, 9, 20, 18));
-    await pump(tester);
-    await tester.drag(find.text('18:00'), const Offset(-500, 0));
-    await tester.pumpAndSettle();
-    expect(repo.beers, isEmpty);
-    expect(find.text('UNDO'), findsOneWidget);
+  group('the journey', () {
+    testWidgets('renders one waypoint per beer, labelled by local time',
+        (tester) async {
+      await repo.addAt(ml: 333, at: DateTime(2026, 9, 20, 9, 5));
+      await repo.addAt(ml: 500, at: DateTime(2026, 9, 20, 18, 40));
+      await pump(tester);
+      expect(find.text('09:05'), findsOneWidget);
+      expect(find.text('18:40'), findsOneWidget);
+      expect(find.text('½'), findsWidgets);
+      expect(find.text('⅓'), findsWidgets);
+    });
 
-    await tester.tap(find.text('UNDO'));
-    await tester.pumpAndSettle();
-    expect(repo.beers, hasLength(1));
+    testWidgets('runs oldest to newest, left to right', (tester) async {
+      await repo.addAt(ml: 333, at: DateTime(2026, 9, 19, 20));
+      await repo.addAt(ml: 333, at: DateTime(2026, 9, 20, 20));
+      await pump(tester);
+      expect(
+        tester.getCenter(find.text('YESTERDAY')).dx,
+        lessThan(tester.getCenter(find.text('TODAY')).dx),
+      );
+    });
+
+    testWidgets('marks each day with its own count and volume',
+        (tester) async {
+      await repo.addAt(ml: 500, at: DateTime(2026, 9, 20, 18));
+      await repo.addAt(ml: 500, at: DateTime(2026, 9, 20, 19));
+      await repo.addAt(ml: 333, at: DateTime(2026, 9, 14, 20));
+      await pump(tester);
+      expect(find.text('TODAY'), findsOneWidget);
+      expect(find.text('MON 14 SEP'), findsOneWidget);
+      expect(find.text('2 · 1.0 L'), findsOneWidget);
+      expect(find.text('1 · 0.3 L'), findsOneWidget);
+    });
+
+    testWidgets('ends with a NOW cap', (tester) async {
+      await repo.addAt(ml: 333, at: DateTime(2026, 9, 20, 18));
+      await pump(tester);
+      expect(find.text('NOW'), findsOneWidget);
+    });
+
+    testWidgets('shows only a recent window of a long history',
+        (tester) async {
+      for (var i = 0; i < maxWaypoints + 12; i++) {
+        await repo.addAt(
+          ml: 333,
+          at: DateTime(2026, 9, 20, 8).subtract(Duration(minutes: i)),
+        );
+      }
+      await pump(tester);
+      expect(find.text('12'), findsWidgets);
+      expect(find.text('more'), findsOneWidget);
+    });
   });
 
-  testWidgets('entry rows show local time and size glyph', (tester) async {
-    await repo.addAt(ml: 500, at: DateTime(2026, 9, 20, 9, 5));
-    await pump(tester);
-    expect(find.text('09:05'), findsOneWidget);
-    expect(find.text('½'), findsWidgets);
-  });
+  group('deleting a mis-tapped beer', () {
+    testWidgets('tapping a waypoint opens its detail sheet', (tester) async {
+      await repo.addAt(ml: 500, at: DateTime(2026, 9, 20, 18));
+      await pump(tester);
+      await tester.tap(find.text('18:00'));
+      await tester.pumpAndSettle();
+      expect(find.text('500 ml'), findsOneWidget);
+      expect(find.text('DELETE THIS BEER'), findsOneWidget);
+      expect(find.text('KEEP IT'), findsOneWidget);
+    });
 
-  testWidgets('an older day gets a dated header', (tester) async {
-    await repo.addAt(ml: 333, at: DateTime(2026, 9, 14, 20));
-    await pump(tester);
-    expect(find.text('MON 14 SEP'), findsOneWidget);
+    testWidgets('confirming removes it and offers undo', (tester) async {
+      await repo.addAt(ml: 333, at: DateTime(2026, 9, 20, 18));
+      await pump(tester);
+      await tester.tap(find.text('18:00'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('DELETE THIS BEER'));
+      await tester.pumpAndSettle();
+
+      expect(repo.beers, isEmpty);
+      expect(find.text('UNDO'), findsOneWidget);
+
+      await tester.tap(find.text('UNDO'));
+      await tester.pumpAndSettle();
+      expect(repo.beers, hasLength(1));
+    });
+
+    testWidgets('keeping it changes nothing', (tester) async {
+      await repo.addAt(ml: 333, at: DateTime(2026, 9, 20, 18));
+      await pump(tester);
+      await tester.tap(find.text('18:00'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('KEEP IT'));
+      await tester.pumpAndSettle();
+      expect(repo.beers, hasLength(1));
+    });
+
+    testWidgets('dismissing the sheet changes nothing', (tester) async {
+      await repo.addAt(ml: 333, at: DateTime(2026, 9, 20, 18));
+      await pump(tester);
+      await tester.tap(find.text('18:00'));
+      await tester.pumpAndSettle();
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+      expect(repo.beers, hasLength(1));
+    });
   });
 }

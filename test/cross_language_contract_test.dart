@@ -94,4 +94,30 @@ void main() {
   test('the receiver never lets an exception escape', () {
     expect(provider, contains('catch (t: Throwable)'));
   });
+
+  group('the tap animation', () {
+    test('drives the count size, the pill and the sub-line', () {
+      expect(provider, contains('setTextViewTextSize'));
+      expect(provider, contains('widget_pill_active'));
+      expect(provider, contains('setTextColor'));
+    });
+
+    test('runs as a delayed frame sequence, not a single repaint', () {
+      expect(provider, contains('postDelayed'));
+      expect(
+        provider,
+        contains('goAsync()'),
+        reason: 'the receiver must stay alive for the whole sequence',
+      );
+    });
+
+    test('the lit pill drawable exists', () {
+      expect(
+        File(
+          'android/app/src/main/res/drawable/widget_pill_active.xml',
+        ).existsSync(),
+        isTrue,
+      );
+    });
+  });
 }

@@ -12,24 +12,32 @@ Dark canvas, one amber accent, and nothing else.
 
 **Home-screen widget**
 - Two pills: `⅓` and `½`. One tap logs, no confirmation, no app launch.
-- Shows today's count and volume, and resets itself at midnight.
+- The tap animates: the count pops, the pill you hit fills amber, and the
+  sub-line flashes `+333 ML` before settling back to the running total.
 - Never starts a Flutter engine, so a tap is instant even when the app is
   not running.
 
-**Timeline**
-- Today's count and volume in the hero block.
-- Weekly goal bar, which turns red when you go over.
-- Entries grouped by day, newest first. Swipe an entry left to delete it,
-  with undo.
+**The journey**
+- The timeline is a dotted path running left to right through time, with
+  every beer a waypoint on it. Days are stations along the way; the path
+  ends at `NOW`.
+- Opens scrolled to the present, and walks itself back there when you log.
+- A newly logged beer pops onto the path.
+- Tap any waypoint to see it and delete it, with undo. That is the fix for
+  a beer you logged by accident.
 
-**Statistics**
-- Today, this week (with the goal), and all time totals.
-- Rhythm: beers per day over 30 days, per week over 12 weeks, peak hour,
-  a by-weekday chart, a by-hour chart, and the last 30 days.
-- Streaks: current dry streak, longest dry streak ever, current drinking
-  streak, biggest single day, and weeks under goal.
-- Mix: the `1/3` vs `1/2` split.
-- A GitHub-style heatmap of the last 53 weeks.
+**Statistics** — seven diagrams, not seven numbers.
+- **This week**: an arc gauge sweeping toward your goal, red once past it.
+- **Last 30 days**: a smoothed area curve with the peak day marked.
+- **By hour**: a 24-spoke clock face. Midnight at the top, your peak hour lit.
+- **By weekday**: a radar polygon, so the shape of your week is the point.
+- **Streaks**: a 60-day ribbon where dry runs and benders are visible as runs.
+- **Mix**: a donut of `1/3` against `1/2`.
+- **Year**: a heatmap of the last 53 weeks, with month labels and a legend.
+
+Everything animates in on build and every chart is hand-drawn with
+`CustomPainter` — no charting dependency, so the palette is exact and the
+APK stays small.
 
 **Settings**
 - Weekly goal (0 turns it off), week start (Sunday or Monday).
@@ -114,7 +122,7 @@ The Gradle config picks the file up automatically if it exists.
 
 ```bash
 flutter analyze   # must be clean
-flutter test      # 135 tests
+flutter test      # 148 tests
 ```
 
 Layout:
@@ -124,7 +132,8 @@ Layout:
 | `lib/models/` | `Beer`, `BeerSize`, the NDJSON codec |
 | `lib/data/` | log file, repository, settings, export, widget bridge |
 | `lib/stats/` | pure statistics over `List<Beer>` - no IO, no Flutter |
-| `lib/ui/` | screens and the hand-built charts |
+| `lib/ui/` | screens, the journey timeline and the charts |
+| `lib/ui/widgets/charts/` | every diagram, each one a `CustomPainter` |
 | `android/app/src/main/kotlin/` | the widget provider and its log appender |
 | `docs/superpowers/` | the design spec and the implementation plan |
 
@@ -137,6 +146,16 @@ Two rules worth knowing before changing anything:
    contract.** `lib/data/beer_log_file.dart` and
    `android/.../BeerLog.kt` must agree, and every preference value is stored
    as a `String` on both sides.
+
+3. **The widget's animation is a scripted sequence, not an animator.**
+   `RemoteViews` cannot run one, so `BeerWidgetProvider` calls `goAsync()`
+   and posts a handful of delayed frames that change the text size, the pill
+   drawable and the sub-line. Keep the whole sequence well under the ten
+   seconds a broadcast receiver is given.
+
+The journey lays its waypoints out eagerly in a single `Stack`, so it shows
+the most recent `maxWaypoints` (150) beers and marks the rest as "N more".
+The full history is still in the heatmap and the export.
 
 Widget tests use an in-memory log store, because `testWidgets` bodies run
 under `FakeAsync` where real `dart:io` futures never complete.
