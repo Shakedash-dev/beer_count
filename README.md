@@ -69,12 +69,22 @@ Dart 3.13, `compileSdk 36`, `minSdk 26`.
 
 ```bash
 flutter pub get
-flutter build apk --release
-adb install -r build/app/outputs/flutter-apk/app-release.apk
+flutter build apk --release --split-per-abi
+adb install -r build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
 ```
+
+`--split-per-abi` gives a 21 MB APK instead of the 51 MB universal one.
+Any phone from the last decade is `arm64-v8a`; plain
+`flutter build apk --release` produces the universal
+`app-release.apk` if you would rather not care.
 
 Then long-press the home screen → Widgets → Beer Count, and drag the
 4x1 widget out. It resizes.
+
+The first build downloads the Android NDK and CMake (~2.5 GB) even though
+this app has no native code of its own - that comes from the Flutter Gradle
+plugin and from `home_widget`, which pulls in Jetpack Glance. Subsequent
+builds are fast.
 
 ### Signing
 
@@ -104,7 +114,7 @@ The Gradle config picks the file up automatically if it exists.
 
 ```bash
 flutter analyze   # must be clean
-flutter test      # 125 tests
+flutter test      # 135 tests
 ```
 
 Layout:
