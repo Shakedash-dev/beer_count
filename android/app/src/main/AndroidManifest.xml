@@ -25,6 +25,20 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- The system AppWidgetHost broadcasts to this from outside the
+             app, so it must be exported or the widget never updates. -->
+        <receiver
+            android:name=".BeerWidgetProvider"
+            android:exported="true"
+            android:label="Beer Count">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.shakedash.beercount.LOG" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/beer_widget_info" />
+        </receiver>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

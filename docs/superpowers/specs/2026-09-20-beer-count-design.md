@@ -372,7 +372,9 @@ manual check on the device.
 
 ## 11. Build and signing
 
-- `minSdk 23`, `targetSdk 35`, `compileSdk 35`.
+- `minSdk 26`, `targetSdk 36`, `compileSdk 36`. (`minSdk` was raised
+  from 23 during implementation so the launcher icon can be a pure vector
+  adaptive icon and the repo carries no binary image assets.)
 - `applicationId com.shakedash.beercount`.
 - Release signing is **optional and local**: if `android/key.properties`
   exists it is used; otherwise the build falls back to the debug signing

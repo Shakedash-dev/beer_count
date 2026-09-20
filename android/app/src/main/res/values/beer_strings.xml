@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_description">Log a beer in one tap.</string>
+    <string name="widget_third">⅓</string>
+    <string name="widget_half">½</string>
+    <string name="widget_log_third">Log a third of a litre</string>
+    <string name="widget_log_half">Log half a litre</string>
+    <string name="widget_sub_placeholder">today · 0.0 L</string>
+</resources>

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="16dp"
+    android:paddingTop="10dp"
+    android:paddingEnd="12dp"
+    android:paddingBottom="10dp">
+
+    <LinearLayout
+        android:id="@+id/beer_open"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/beer_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:includeFontPadding="false"
+            android:text="0"
+            android:textColor="#F4F1EA"
+            android:textSize="32sp" />
+
+        <TextView
+            android:id="@+id/beer_sub"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:includeFontPadding="false"
+            android:text="@string/widget_sub_placeholder"
+            android:textColor="#8A8780"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/beer_third"
+        android:layout_width="56dp"
+        android:layout_height="46dp"
+        android:background="@drawable/widget_pill"
+        android:contentDescription="@string/widget_log_third"
+        android:gravity="center"
+        android:includeFontPadding="false"
+        android:text="@string/widget_third"
+        android:textColor="#E8A33D"
+        android:textSize="20sp" />
+
+    <TextView
+        android:id="@+id/beer_half"
+        android:layout_width="56dp"
+        android:layout_height="46dp"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/widget_pill"
+        android:contentDescription="@string/widget_log_half"
+        android:gravity="center"
+        android:includeFontPadding="false"
+        android:text="@string/widget_half"
+        android:textColor="#E8A33D"
+        android:textSize="20sp" />
+</LinearLayout>
