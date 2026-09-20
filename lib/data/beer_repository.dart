@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/beer.dart';
 import '../models/beer_size.dart';
-import 'beer_log_file.dart';
+import 'beer_log_store.dart';
 import 'widget_bridge.dart';
 
 /// Owns the in-memory log and is the only place that mutates it.
@@ -18,7 +18,7 @@ class BeerRepository extends ChangeNotifier {
   })  : _clock = clock ?? DateTime.now,
         _random = random ?? Random();
 
-  final BeerLogFile log;
+  final BeerLogStore log;
   final WidgetBridge widget;
   final DateTime Function() _clock;
   final Random _random;

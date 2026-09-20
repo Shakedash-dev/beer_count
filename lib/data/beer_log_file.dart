@@ -1,24 +1,19 @@
 import 'dart:io';
 
 import '../models/beer.dart';
+import 'beer_log_store.dart';
 
-class BeerLogReadResult {
-  const BeerLogReadResult({required this.beers, required this.skippedLines});
-
-  static const empty = BeerLogReadResult(beers: <Beer>[], skippedLines: 0);
-
-  final List<Beer> beers;
-  final int skippedLines;
-}
+export 'beer_log_store.dart' show BeerLogReadResult, BeerLogStore;
 
 /// Append-only NDJSON log, one JSON object per line. The Kotlin widget
 /// appends to the same file (see BeerLog.kt), so the format here is a
 /// cross-language contract: change one side and you must change the other.
-class BeerLogFile {
+class BeerLogFile implements BeerLogStore {
   BeerLogFile(this.file);
 
   final File file;
 
+  @override
   Future<BeerLogReadResult> readAll() async {
     if (!file.existsSync()) return BeerLogReadResult.empty;
     final raw = await file.readAsString();
@@ -35,6 +30,7 @@ class BeerLogFile {
     return BeerLogReadResult(beers: beers, skippedLines: skipped);
   }
 
+  @override
   Future<void> append(Beer beer) async {
     await file.parent.create(recursive: true);
     final prefix = await _needsLeadingNewline() ? '\n' : '';
@@ -45,6 +41,7 @@ class BeerLogFile {
     );
   }
 
+  @override
   Future<void> rewrite(List<Beer> beers) async {
     await file.parent.create(recursive: true);
     final temp = File('${file.path}.tmp');
@@ -58,6 +55,7 @@ class BeerLogFile {
     await temp.rename(file.path);
   }
 
+  @override
   Future<void> clear() => rewrite(const <Beer>[]);
 
   /// A torn write can only damage the last line. Starting the next record on
