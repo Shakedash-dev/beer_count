@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../models/beer.dart';
 import '../models/beer_size.dart';
 import 'beer_log_store.dart';
+import 'beer_sound.dart';
 import 'widget_bridge.dart';
 
 /// Owns the in-memory log and is the only place that mutates it.
@@ -13,6 +15,7 @@ class BeerRepository extends ChangeNotifier {
   BeerRepository({
     required this.log,
     required this.widget,
+    this.sound = const NoopBeerSound(),
     DateTime Function()? clock,
     Random? random,
   })  : _clock = clock ?? DateTime.now,
@@ -20,6 +23,7 @@ class BeerRepository extends ChangeNotifier {
 
   final BeerLogStore log;
   final WidgetBridge widget;
+  final BeerSound sound;
   final DateTime Function() _clock;
   final Random _random;
 
@@ -52,7 +56,13 @@ class BeerRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<Beer?> add(BeerSize size) => addAt(ml: size.ml, at: _clock());
+  /// A fresh tap. Plays the log sound once the beer is safely on disk;
+  /// [addAt] and [restore] stay silent.
+  Future<Beer?> add(BeerSize size) async {
+    final beer = await addAt(ml: size.ml, at: _clock());
+    if (beer != null) unawaited(sound.play());
+    return beer;
+  }
 
   Future<Beer?> addAt({required int ml, required DateTime at}) async {
     final beer = Beer.create(ml: ml, at: at, random: _random);

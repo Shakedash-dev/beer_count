@@ -56,11 +56,20 @@ class BeerWidgetProvider : AppWidgetProvider() {
         }
 
         val pillId = if (ml == ML_HALF) R.id.beer_half else R.id.beer_third
+        // Keep the receiver alive until both the animation and the sound end.
         val pending = goAsync()
+        var outstanding = 2
+        val done = {
+            synchronized(pending) {
+                outstanding--
+                if (outstanding == 0) pending.finish()
+            }
+        }
+        BeerSound.play(context) { done() }
         try {
-            animate(context, summary, ml, pillId) { pending.finish() }
+            animate(context, summary, ml, pillId) { done() }
         } catch (t: Throwable) {
-            pending.finish()
+            done()
         }
     }
 

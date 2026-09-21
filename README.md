@@ -17,6 +17,15 @@ Dark canvas, one amber accent, and nothing else.
 - Never starts a Flutter engine, so a tap is instant even when the app is
   not running.
 
+**Sound**
+- Every logged beer plays a short clip, from the app or the widget.
+- Clips rotate: each one plays, then the next one is up. The app and the
+  widget share one cursor, so the order continues whichever side you tap.
+- Silent and vibrate mode play nothing. Undo and restore never play.
+- Swap the set by editing `sounds/` and running
+  `python3 tool/convert_sounds.py` (needs `ffmpeg`). Credits and licences in
+  [sounds/CREDITS.md](sounds/CREDITS.md).
+
 **The journey**
 - The timeline is a dotted path running left to right through time, with
   every beer a waypoint on it. Days are stations along the way; the path
@@ -122,7 +131,7 @@ The Gradle config picks the file up automatically if it exists.
 
 ```bash
 flutter analyze   # must be clean
-flutter test      # 148 tests
+flutter test      # 158 tests
 ```
 
 Layout:
@@ -134,7 +143,10 @@ Layout:
 | `lib/stats/` | pure statistics over `List<Beer>` - no IO, no Flutter |
 | `lib/ui/` | screens, the journey timeline and the charts |
 | `lib/ui/widgets/charts/` | every diagram, each one a `CustomPainter` |
-| `android/app/src/main/kotlin/` | the widget provider and its log appender |
+| `android/app/src/main/kotlin/` | the widget provider, its log appender and the sound rotation |
+| `android/app/src/main/res/raw/` | converted sound clips, `beer_sound_1..N.ogg` |
+| `sounds/` | original sound clips and their credits |
+| `tool/convert_sounds.py` | turns `sounds/` into `res/raw/` |
 | `docs/superpowers/` | the design spec and the implementation plan |
 
 Two rules worth knowing before changing anything:
@@ -151,7 +163,8 @@ Two rules worth knowing before changing anything:
    `RemoteViews` cannot run one, so `BeerWidgetProvider` calls `goAsync()`
    and posts a handful of delayed frames that change the text size, the pill
    drawable and the sub-line. Keep the whole sequence well under the ten
-   seconds a broadcast receiver is given.
+   seconds a broadcast receiver is given. The receiver also waits for the
+   sound to finish, so keep clips short (the converter caps them at 1.5 s).
 
 The journey lays its waypoints out eagerly in a single `Stack`, so it shows
 the most recent `maxWaypoints` (150) beers and marks the rest as "N more".

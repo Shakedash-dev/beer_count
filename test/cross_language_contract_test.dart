@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:beer_count/data/beer_sound.dart';
 import 'package:beer_count/data/widget_bridge.dart';
 import 'package:beer_count/models/beer.dart';
 import 'package:beer_count/models/beer_size.dart';
@@ -93,6 +94,49 @@ void main() {
 
   test('the receiver never lets an exception escape', () {
     expect(provider, contains('catch (t: Throwable)'));
+  });
+
+  group('the log sound', () {
+    late String sound;
+
+    setUpAll(() {
+      sound = File('${kotlinDir.path}/BeerSound.kt').readAsStringSync();
+    });
+
+    test('dart and kotlin agree on the channel name', () {
+      expect(sound, contains('CHANNEL = "$kSoundChannel"'));
+      final activity =
+          File('${kotlinDir.path}/MainActivity.kt').readAsStringSync();
+      expect(activity, contains('BeerSound.CHANNEL'));
+      expect(activity, contains('"play"'));
+    });
+
+    test('the rotation cursor lives in the widget prefs as a String', () {
+      expect(sound, contains('"HomeWidgetPreferences"'));
+      expect(sound, contains('putString(KEY_NEXT'));
+      expect(sound, isNot(contains('putInt(')));
+    });
+
+    test('the widget plays it and waits for it', () {
+      expect(provider, contains('BeerSound.play(context)'));
+    });
+
+    test('clips are numbered from 1 with no gaps', () {
+      final raw = Directory('android/app/src/main/res/raw');
+      final names = raw
+          .listSync()
+          .map((f) => f.uri.pathSegments.last)
+          .where((n) => n.startsWith('beer_sound_'))
+          .toSet();
+      expect(names, isNotEmpty);
+      for (var i = 1; i <= names.length; i++) {
+        expect(names, contains('beer_sound_$i.ogg'));
+      }
+      expect(
+        File('${raw.path}/keep.xml').readAsStringSync(),
+        contains('@raw/beer_sound_*'),
+      );
+    });
   });
 
   group('the tap animation', () {

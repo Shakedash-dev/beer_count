@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import 'data/beer_log_file.dart';
 import 'data/beer_repository.dart';
+import 'data/beer_sound.dart';
 import 'data/settings_store.dart';
 import 'data/widget_bridge.dart';
 import 'ui/app_shell.dart';
@@ -34,6 +35,8 @@ Future<void> main() async {
     log: log,
     widget:
         Platform.isAndroid ? const HomeWidgetBridge() : const NoopWidgetBridge(),
+    sound:
+        Platform.isAndroid ? const PlatformBeerSound() : const NoopBeerSound(),
   );
   final settings = SettingsStore();
 
