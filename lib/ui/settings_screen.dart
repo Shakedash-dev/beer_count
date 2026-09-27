@@ -1,13 +1,17 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../data/beer_repository.dart';
+import '../data/document_files.dart';
 import '../data/exporter.dart';
+import '../data/importer.dart';
 import '../data/settings_store.dart';
 import 'theme.dart';
 import 'widgets/section_card.dart';
@@ -79,11 +83,23 @@ class SettingsScreen extends StatelessWidget {
           ),
           const SizedBox(height: AppSpace.md),
           SectionCard(
-            title: 'EXPORT',
+            title: 'BACKUP',
             child: Column(
               children: [
                 _Row(
-                  label: 'Export CSV',
+                  label: 'Save JSON backup',
+                  icon: Icons.save_alt,
+                  onTap: () => _saveBackup(context, repo),
+                ),
+                const Divider(),
+                _Row(
+                  label: 'Import JSON backup',
+                  icon: Icons.file_open_outlined,
+                  onTap: () => _importBackup(context, repo),
+                ),
+                const Divider(),
+                _Row(
+                  label: 'Share CSV',
                   onTap: () => _export(
                     repo,
                     'beer_count.csv',
@@ -92,7 +108,7 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 const Divider(),
                 _Row(
-                  label: 'Export JSON',
+                  label: 'Share JSON',
                   onTap: () => _export(
                     repo,
                     'beer_count.json',
@@ -161,6 +177,62 @@ class SettingsScreen extends StatelessWidget {
     await Share.shareXFiles([XFile(file.path)], subject: 'Beer Count export');
   }
 
+  Future<void> _saveBackup(BuildContext context, BeerRepository repo) async {
+    final files = context.read<DocumentFiles>();
+    final messenger = ScaffoldMessenger.of(context);
+    final day = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final String message;
+    try {
+      final saved = await files.save(
+        'beer_count_$day.json',
+        beersToJson(repo.beers),
+      );
+      if (!saved) return;
+      message = 'Saved ${repo.beers.length} beers';
+    } on PlatformException catch (e) {
+      _snack(messenger, 'Save failed: ${e.message}');
+      return;
+    }
+    _snack(messenger, message);
+  }
+
+  /// Merge-only: nothing already logged is changed or removed.
+  Future<void> _importBackup(BuildContext context, BeerRepository repo) async {
+    final files = context.read<DocumentFiles>();
+    final messenger = ScaffoldMessenger.of(context);
+    final String? text;
+    try {
+      text = await files.open();
+    } on PlatformException catch (e) {
+      _snack(messenger, 'Import failed: ${e.message}');
+      return;
+    }
+    if (text == null) return;
+
+    final BeerImportResult parsed;
+    try {
+      parsed = beersFromJson(text);
+    } on FormatException {
+      _snack(messenger, 'Not a Beer Count JSON backup');
+      return;
+    }
+    final added = await repo.importBeers(parsed.beers);
+    if (added == null) {
+      _snack(messenger, 'Import failed: ${repo.lastError}');
+      return;
+    }
+    final known = parsed.beers.length - added;
+    _snack(messenger, [
+      'Imported $added beers',
+      if (known > 0) '$known already here',
+      if (parsed.skipped > 0) '${parsed.skipped} unreadable',
+    ].join(', '));
+  }
+
+  void _snack(ScaffoldMessengerState messenger, String text) => messenger
+    ..clearSnackBars()
+    ..showSnackBar(SnackBar(content: Text(text, style: AppText.body)));
+
   Future<void> _confirmErase(BuildContext context, BeerRepository repo) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -191,9 +263,14 @@ class SettingsScreen extends StatelessWidget {
 }
 
 class _Row extends StatelessWidget {
-  const _Row({required this.label, required this.onTap});
+  const _Row({
+    required this.label,
+    required this.onTap,
+    this.icon = Icons.ios_share,
+  });
 
   final String label;
+  final IconData icon;
   final VoidCallback onTap;
 
   @override
@@ -205,11 +282,7 @@ class _Row extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(label, style: AppText.body),
-              const Icon(
-                Icons.ios_share,
-                size: 18,
-                color: AppColors.textDim,
-              ),
+              Icon(icon, size: 18, color: AppColors.textDim),
             ],
           ),
         ),

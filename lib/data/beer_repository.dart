@@ -114,6 +114,26 @@ class BeerRepository extends ChangeNotifier {
     await _finish();
   }
 
+  /// Merges a backup into the log. Ids already present are skipped, so
+  /// importing the same file twice is harmless. Returns how many beers were
+  /// added, or null if the write failed.
+  Future<int?> importBeers(List<Beer> incoming) async {
+    final known = {for (final b in _beers) b.id};
+    final fresh = [for (final b in incoming) if (known.add(b.id)) b];
+    if (fresh.isEmpty) return 0;
+    final merged = _sorted([..._beers, ...fresh]);
+    try {
+      await log.rewrite(merged.reversed.toList());
+    } on Object catch (e) {
+      _lastError = '$e';
+      notifyListeners();
+      return null;
+    }
+    _beers = merged;
+    await _finish();
+    return fresh.length;
+  }
+
   Future<void> eraseAll() async {
     try {
       await log.clear();

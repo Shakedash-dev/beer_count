@@ -188,6 +188,33 @@ void main() {
     });
   });
 
+  group('importBeers', () {
+    test('adds new beers, skips known ids and in-file duplicates', () async {
+      await repo.load();
+      final existing = await repo.addAt(ml: 500, at: DateTime(2026, 9, 20));
+      final old = Beer(id: 'old-1', ml: 333, at: DateTime(2026, 9, 1, 20));
+
+      final added = await repo.importBeers([existing!, old, old]);
+
+      expect(added, 1);
+      expect(repo.beers.map((b) => b.id), [existing.id, 'old-1']);
+      expect((await log.readAll()).beers, hasLength(2));
+    });
+
+    test('importing the same backup twice adds nothing the second time',
+        () async {
+      await repo.load();
+      final backup = [
+        Beer(id: 'a', ml: 333, at: DateTime(2026, 9, 1, 20)),
+        Beer(id: 'b', ml: 500, at: DateTime(2026, 9, 20, 19)),
+      ];
+      expect(await repo.importBeers(backup), 2);
+      expect(await repo.importBeers(backup), 0);
+      expect(repo.beers, hasLength(2));
+      expect(bridge.pushes.last.count, 1);
+    });
+  });
+
   test('an unwritable log surfaces an error instead of throwing', () async {
     await log.append(Beer(id: 'x', ml: 333, at: now));
     // The parent of this path is a regular file, so mkdir must fail.

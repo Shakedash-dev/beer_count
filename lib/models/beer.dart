@@ -39,17 +39,23 @@ class Beer {
     if (decoded is! Map<String, Object?>) {
       throw FormatException('not a json object', trimmed);
     }
-    final id = decoded['id'];
-    final ml = decoded['ml'];
-    final at = decoded['at'];
+    return Beer.fromJsonMap(decoded, source: trimmed);
+  }
+
+  /// The inverse of [toJsonMap]. Shared by the log file and JSON import so
+  /// both reject exactly the same records.
+  factory Beer.fromJsonMap(Map<String, Object?> map, {Object? source}) {
+    final id = map['id'];
+    final ml = map['ml'];
+    final at = map['at'];
     if (id is! String || id.isEmpty) {
-      throw FormatException('bad id', trimmed);
+      throw FormatException('bad id', source ?? map);
     }
     if (ml is! int || ml <= 0) {
-      throw FormatException('bad ml', trimmed);
+      throw FormatException('bad ml', source ?? map);
     }
     if (at is! int) {
-      throw FormatException('bad at', trimmed);
+      throw FormatException('bad at', source ?? map);
     }
     return Beer(id: id, ml: ml, at: DateTime.fromMillisecondsSinceEpoch(at));
   }

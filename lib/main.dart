@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'data/beer_log_file.dart';
 import 'data/beer_repository.dart';
 import 'data/beer_sound.dart';
+import 'data/document_files.dart';
 import 'data/settings_store.dart';
 import 'data/widget_bridge.dart';
 import 'ui/app_shell.dart';
@@ -48,6 +49,7 @@ Future<void> main() async {
       providers: [
         ChangeNotifierProvider<BeerRepository>.value(value: repo),
         ChangeNotifierProvider<SettingsStore>.value(value: settings),
+        Provider<DocumentFiles>.value(value: const PlatformDocumentFiles()),
       ],
       child: MaterialApp(
         title: 'Beer Count',

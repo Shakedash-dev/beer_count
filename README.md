@@ -50,7 +50,9 @@ APK stays small.
 
 **Settings**
 - Weekly goal (0 turns it off), week start (Sunday or Monday).
-- Export the full log as CSV or JSON through the share sheet.
+- Save a JSON backup to any folder or Drive, and import it back. Import only
+  merges: beers already in the log are skipped, nothing is overwritten.
+- Share the full log as CSV or JSON through the share sheet.
 - Erase everything, behind a confirmation.
 
 ## How the data is stored
@@ -127,11 +129,17 @@ storeFile=/absolute/path/to/beer-count.jks
 
 The Gradle config picks the file up automatically if it exists.
 
+Android refuses to update an app with an APK signed by a different key
+(`INSTALL_FAILED_UPDATE_INCOMPATIBLE`), and uninstalling deletes the log.
+To switch keys: Settings → Save JSON backup, `adb uninstall
+com.shakedash.beercount`, install the new build, Settings → Import JSON
+backup.
+
 ## Development
 
 ```bash
 flutter analyze   # must be clean
-flutter test      # 158 tests
+flutter test      # 175 tests
 ```
 
 Layout:
@@ -139,7 +147,7 @@ Layout:
 | Path | What lives there |
 |---|---|
 | `lib/models/` | `Beer`, `BeerSize`, the NDJSON codec |
-| `lib/data/` | log file, repository, settings, export, widget bridge |
+| `lib/data/` | log file, repository, settings, export/import, file dialogs, widget bridge |
 | `lib/stats/` | pure statistics over `List<Beer>` - no IO, no Flutter |
 | `lib/ui/` | screens, the journey timeline and the charts |
 | `lib/ui/widgets/charts/` | every diagram, each one a `CustomPainter` |
