@@ -50,6 +50,10 @@ APK stays small.
 
 **Settings**
 - Weekly goal (0 turns it off), week start (Sunday or Monday).
+- Reaching the goal sets off amber fireworks in the app, once per week (and
+  again if you raise the goal and reach it). The home-screen widget flashes
+  on the tap that reaches it, then stays in goal mode for the rest of the
+  week: amber rim, amber count, `✦ 14/14`.
 - Save a JSON backup to any folder or Drive, and import it back. Import only
   merges: beers already in the log are skipped, nothing is overwritten.
 - Share the full log as CSV or JSON through the share sheet.
@@ -139,7 +143,7 @@ backup.
 
 ```bash
 flutter analyze   # must be clean
-flutter test      # 175 tests
+flutter test      # 188 tests
 ```
 
 Layout:

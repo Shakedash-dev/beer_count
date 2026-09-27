@@ -42,6 +42,12 @@ Future<void> main() async {
   final settings = SettingsStore();
 
   await settings.load();
+  void syncGoal() => repo.setWeeklyGoal(
+        goal: settings.weeklyGoal,
+        weekStartWeekday: settings.weekStartWeekday,
+      );
+  syncGoal();
+  settings.addListener(syncGoal);
   await repo.load();
 
   runApp(

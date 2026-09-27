@@ -5,6 +5,7 @@ import '../data/beer_repository.dart';
 import 'stats_screen.dart';
 import 'theme.dart';
 import 'timeline_screen.dart';
+import 'widgets/goal_fireworks.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -38,7 +39,11 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => GoalCelebration(
+        child: _scaffold(),
+      );
+
+  Widget _scaffold() => Scaffold(
         body: IndexedStack(
           index: _index,
           children: const [TimelineScreen(), StatsScreen()],

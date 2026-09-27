@@ -27,6 +27,9 @@ class BeerRepository extends ChangeNotifier {
   final DateTime Function() _clock;
   final Random _random;
 
+  int _weeklyGoal = 0;
+  int _weekStartWeekday = DateTime.sunday;
+
   List<Beer> _beers = <Beer>[];
   int _skippedLines = 0;
   bool _isLoading = false;
@@ -147,6 +150,18 @@ class BeerRepository extends ChangeNotifier {
     await _finish();
   }
 
+  /// The widget renders the weekly goal too, so settings changes are pushed
+  /// through here. Wired to [SettingsStore] in main.dart.
+  Future<void> setWeeklyGoal({
+    required int goal,
+    required int weekStartWeekday,
+  }) async {
+    if (goal == _weeklyGoal && weekStartWeekday == _weekStartWeekday) return;
+    _weeklyGoal = goal;
+    _weekStartWeekday = weekStartWeekday;
+    await _pushSummary();
+  }
+
   Future<bool> _tryAppend(Beer beer) async {
     try {
       await log.append(beer);
@@ -166,7 +181,14 @@ class BeerRepository extends ChangeNotifier {
 
   Future<void> _pushSummary() async {
     try {
-      await widget.push(summarizeToday(_beers, _clock()));
+      await widget.push(
+        summarizeToday(
+          _beers,
+          _clock(),
+          weeklyGoal: _weeklyGoal,
+          weekStartWeekday: _weekStartWeekday,
+        ),
+      );
     } on Object {
       // The widget cache is best-effort. Never fail a log because of it.
     }

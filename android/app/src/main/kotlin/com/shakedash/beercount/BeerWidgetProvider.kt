@@ -21,6 +21,10 @@ import java.util.Locale
  *
  * RemoteViews cannot run a real animator, so the "pop" after a tap is a short
  * scripted sequence of widget updates - see [Frame] and [animate].
+ *
+ * Once the weekly goal is reached the widget stays in goal mode for the rest
+ * of the week: amber frame, amber count, and a "✦ 14/14" tag. The tap that
+ * reaches the goal plays a longer, flashing sequence instead of the pop.
  */
 class BeerWidgetProvider : AppWidgetProvider() {
 
@@ -75,14 +79,15 @@ class BeerWidgetProvider : AppWidgetProvider() {
 
     /**
      * One step of the tap animation. [countSp] pops the number, [pillLit]
-     * fills the tapped pill, and a non-null [subText] flashes the delta over
-     * the usual "today - x L" line.
+     * fills the tapped pill, a non-null [subText] flashes over the usual
+     * "today - x L" line, and [flash] floods the whole widget amber.
      */
     private data class Frame(
         val delayMs: Long,
         val countSp: Float,
         val pillLit: Boolean,
         val subText: String?,
+        val flash: Boolean = false,
     ) {
         companion object {
             val RESTING = Frame(0, RESTING_SP, false, null)
@@ -97,13 +102,35 @@ class BeerWidgetProvider : AppWidgetProvider() {
         onDone: () -> Unit,
     ) {
         val delta = String.format(Locale.US, "+%d ML", ml)
-        val frames = listOf(
-            Frame(0, 47f, true, delta),
-            Frame(110, 39f, true, delta),
-            Frame(200, 34f, false, delta),
-            Frame(300, RESTING_SP, false, delta),
-            Frame(560, RESTING_SP, false, null),
-        )
+        val reachedNow = summary.goalReached && summary.weekCount == summary.goal
+        val frames = if (reachedNow) {
+            val tally = String.format(
+                Locale.US,
+                "%d/%d THIS WEEK",
+                summary.weekCount,
+                summary.goal,
+            )
+            listOf(
+                Frame(0, 47f, true, delta),
+                Frame(110, 39f, true, delta),
+                Frame(220, 34f, false, "✦"),
+                Frame(330, 42f, false, "✦  ✦  ✦", flash = true),
+                Frame(450, 34f, false, "✦ GOAL ✦"),
+                Frame(570, 44f, false, "✦ GOAL ✦", flash = true),
+                Frame(710, 36f, false, "WEEK GOAL HIT"),
+                Frame(850, 42f, false, "WEEK GOAL HIT", flash = true),
+                Frame(1010, RESTING_SP, false, tally),
+                Frame(2200, RESTING_SP, false, null),
+            )
+        } else {
+            listOf(
+                Frame(0, 47f, true, delta),
+                Frame(110, 39f, true, delta),
+                Frame(200, 34f, false, delta),
+                Frame(300, RESTING_SP, false, delta),
+                Frame(560, RESTING_SP, false, null),
+            )
+        }
 
         val handler = Handler(Looper.getMainLooper())
         frames.forEachIndexed { index, frame ->
@@ -141,6 +168,7 @@ class BeerWidgetProvider : AppWidgetProvider() {
         private const val AMBER = 0xFFE8A33D.toInt()
         private const val INK = 0xFF0B0B0C.toInt()
         private const val DIM = 0xFF8A8780.toInt()
+        private const val CREAM = 0xFFF4F1EA.toInt()
 
         fun renderAll(context: Context, summary: BeerLog.Summary) {
             AppWidgetManager.getInstance(context).updateAppWidget(
@@ -156,23 +184,53 @@ class BeerWidgetProvider : AppWidgetProvider() {
             litPillId: Int,
         ): RemoteViews {
             val views = RemoteViews(context.packageName, R.layout.beer_widget)
+            val goal = summary.goalReached
+            views.setInt(
+                R.id.beer_root,
+                "setBackgroundResource",
+                when {
+                    frame.flash -> R.drawable.widget_bg_flash
+                    goal -> R.drawable.widget_bg_goal
+                    else -> R.drawable.widget_bg
+                },
+            )
             views.setTextViewText(R.id.beer_count, summary.count.toString())
             views.setTextViewTextSize(
                 R.id.beer_count,
                 TypedValue.COMPLEX_UNIT_SP,
                 frame.countSp,
             )
+            views.setTextColor(
+                R.id.beer_count,
+                when {
+                    frame.flash -> INK
+                    goal -> AMBER
+                    else -> CREAM
+                },
+            )
+
+            val today = String.format(Locale.US, "today · %.1f L", summary.ml / 1000.0)
             views.setTextViewText(
                 R.id.beer_sub,
-                frame.subText ?: String.format(
-                    Locale.US,
-                    "today · %.1f L",
-                    summary.ml / 1000.0,
-                ),
+                frame.subText ?: if (goal) {
+                    String.format(
+                        Locale.US,
+                        "%s  ✦ %d/%d",
+                        today,
+                        summary.weekCount,
+                        summary.goal,
+                    )
+                } else {
+                    today
+                },
             )
             views.setTextColor(
                 R.id.beer_sub,
-                if (frame.subText != null) AMBER else DIM,
+                when {
+                    frame.flash -> INK
+                    frame.subText != null || goal -> AMBER
+                    else -> DIM
+                },
             )
 
             for (id in intArrayOf(R.id.beer_third, R.id.beer_half)) {
@@ -182,7 +240,7 @@ class BeerWidgetProvider : AppWidgetProvider() {
                     "setBackgroundResource",
                     if (lit) R.drawable.widget_pill_active else R.drawable.widget_pill,
                 )
-                views.setTextColor(id, if (lit) INK else AMBER)
+                views.setTextColor(id, if (lit || frame.flash) INK else AMBER)
             }
 
             views.setOnClickPendingIntent(R.id.beer_open, openApp(context))

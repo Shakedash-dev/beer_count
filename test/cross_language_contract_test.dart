@@ -36,12 +36,17 @@ void main() {
     expect(beerLog, contains('"$kPrefTodayKey"'));
     expect(beerLog, contains('"$kPrefTodayCount"'));
     expect(beerLog, contains('"$kPrefTodayMl"'));
+    expect(beerLog, contains('"$kPrefWeekKey"'));
+    expect(beerLog, contains('"$kPrefWeekCount"'));
+    expect(beerLog, contains('"$kPrefWeekGoal"'));
+    expect(beerLog, contains('"$kPrefWeekStart"'));
   });
 
   test('kotlin stores every preference value as a String', () {
     expect(beerLog, contains('putString(KEY_DAY'));
     expect(beerLog, contains('putString(KEY_COUNT'));
     expect(beerLog, contains('putString(KEY_ML'));
+    expect(beerLog, contains('putString(KEY_WEEK_COUNT'));
     expect(
       beerLog,
       isNot(contains('putInt(')),
@@ -64,6 +69,27 @@ void main() {
   test('kotlin uses the same day-key format as Dart', () {
     expect(beerLog, contains('"yyyy-MM-dd"'));
     expect(formatDayKey(DateTime(2026, 9, 7)), '2026-09-07');
+  });
+
+  test('kotlin computes the week start the way Dart does', () {
+    // weekStartOf numbers weekdays Monday 1 .. Sunday 7, which is ISO, which
+    // is java.time's dayOfWeek.value. LocalDate.toString() is yyyy-MM-dd.
+    expect(DateTime.monday, 1);
+    expect(DateTime.sunday, 7);
+    expect(beerLog, contains('dayOfWeek.value - weekStart'));
+    expect(beerLog, contains('floorMod'));
+    expect(beerLog, contains('SUNDAY = ${DateTime.sunday}'));
+  });
+
+  test('the widget has a goal mode with its own drawables', () {
+    expect(provider, contains('goalReached'));
+    for (final name in ['widget_bg_goal', 'widget_bg_flash']) {
+      expect(provider, contains('R.drawable.$name'));
+      expect(
+        File('android/app/src/main/res/drawable/$name.xml').existsSync(),
+        isTrue,
+      );
+    }
   });
 
   test('the widget provider class name matches kAndroidWidgetName', () {

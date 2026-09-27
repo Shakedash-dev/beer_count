@@ -42,6 +42,40 @@ void main() {
     );
   });
 
+  group('week fields', () {
+    // 2026-09-20 is a Sunday.
+    final beers = [
+      at(DateTime(2026, 9, 19, 20), 500), // Saturday
+      at(DateTime(2026, 9, 20, 18), 333), // Sunday
+      at(DateTime(2026, 9, 20, 19), 333),
+    ];
+
+    test('a Sunday week starts today and holds only today', () {
+      final s = summarizeToday(beers, now, weeklyGoal: 2);
+      expect(s.weekKey, '2026-09-20');
+      expect(s.weekCount, 2);
+      expect(s.weekGoal, 2);
+      expect(s.weekStart, DateTime.sunday);
+      expect(s.goalReached, isTrue);
+    });
+
+    test('a Monday week reaches back to Monday', () {
+      final s = summarizeToday(
+        beers,
+        now,
+        weeklyGoal: 4,
+        weekStartWeekday: DateTime.monday,
+      );
+      expect(s.weekKey, '2026-09-14');
+      expect(s.weekCount, 3);
+      expect(s.goalReached, isFalse);
+    });
+
+    test('a goal of zero never counts as reached', () {
+      expect(summarizeToday(beers, now).goalReached, isFalse);
+    });
+  });
+
   test('the widget provider name matches the kotlin class', () {
     expect(kAndroidWidgetName, 'BeerWidgetProvider');
   });

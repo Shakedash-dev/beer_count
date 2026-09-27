@@ -6,6 +6,7 @@ import org.json.JSONObject
 import java.io.File
 import java.io.RandomAccessFile
 import java.text.SimpleDateFormat
+import java.time.LocalDate
 import java.util.Date
 import java.util.Locale
 import kotlin.random.Random
@@ -26,25 +27,53 @@ object BeerLog {
     private const val KEY_DAY = "today_key"
     private const val KEY_COUNT = "today_count"
     private const val KEY_ML = "today_ml"
+    private const val KEY_WEEK = "week_key"
+    private const val KEY_WEEK_COUNT = "week_count"
+    private const val KEY_WEEK_GOAL = "week_goal"
+    private const val KEY_WEEK_START = "week_start"
 
-    data class Summary(val dayKey: String, val count: Int, val ml: Int)
+    /** Dart's `DateTime.sunday`. Both sides number weekdays ISO style. */
+    private const val SUNDAY = 7
+
+    data class Summary(
+        val dayKey: String,
+        val count: Int,
+        val ml: Int,
+        val weekCount: Int = 0,
+        val goal: Int = 0,
+    ) {
+        val goalReached: Boolean get() = goal > 0 && weekCount >= goal
+    }
 
     private val lock = Any()
 
     fun todayKey(now: Long = System.currentTimeMillis()): String =
         SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(now))
 
-    /** Reads the cached counter, resetting it when the day has rolled over. */
+    /**
+     * Mirrors `weekStartOf` in lib/stats/buckets.dart. [weekStart] and
+     * `dayOfWeek.value` are both ISO: Monday 1 .. Sunday 7.
+     */
+    fun weekKey(today: LocalDate, weekStart: Int): String {
+        val delta = Math.floorMod(today.dayOfWeek.value - weekStart, 7)
+        return today.minusDays(delta.toLong()).toString()
+    }
+
+    /**
+     * Reads the cached counters, resetting the day and the week
+     * independently when either has rolled over.
+     */
     fun summary(context: Context): Summary = synchronized(lock) {
         val today = todayKey()
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        if (readString(prefs, KEY_DAY) != today) {
-            return Summary(today, 0, 0)
-        }
+        val sameDay = readString(prefs, KEY_DAY) == today
+        val sameWeek = readString(prefs, KEY_WEEK) == currentWeekKey(prefs)
         Summary(
-            today,
-            readString(prefs, KEY_COUNT)?.toIntOrNull() ?: 0,
-            readString(prefs, KEY_ML)?.toIntOrNull() ?: 0,
+            dayKey = today,
+            count = if (sameDay) readInt(prefs, KEY_COUNT) else 0,
+            ml = if (sameDay) readInt(prefs, KEY_ML) else 0,
+            weekCount = if (sameWeek) readInt(prefs, KEY_WEEK_COUNT) else 0,
+            goal = readInt(prefs, KEY_WEEK_GOAL),
         )
     }
 
@@ -64,15 +93,30 @@ object BeerLog {
         file.appendText(prefix + line + "\n")
 
         val current = summary(context)
-        val next = Summary(current.dayKey, current.count + 1, current.ml + ml)
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
+        val next = current.copy(
+            count = current.count + 1,
+            ml = current.ml + ml,
+            weekCount = current.weekCount + 1,
+        )
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        prefs.edit()
             .putString(KEY_DAY, next.dayKey)
             .putString(KEY_COUNT, next.count.toString())
             .putString(KEY_ML, next.ml.toString())
+            .putString(KEY_WEEK, currentWeekKey(prefs))
+            .putString(KEY_WEEK_COUNT, next.weekCount.toString())
             .apply()
         next
     }
+
+    private fun currentWeekKey(prefs: SharedPreferences): String {
+        val start = readString(prefs, KEY_WEEK_START)?.toIntOrNull()
+            ?.takeIf { it in 1..7 } ?: SUNDAY
+        return weekKey(LocalDate.now(), start)
+    }
+
+    private fun readInt(prefs: SharedPreferences, key: String): Int =
+        readString(prefs, key)?.toIntOrNull() ?: 0
 
     /**
      * Older home_widget versions stored ints as ints. Reading such a key as a

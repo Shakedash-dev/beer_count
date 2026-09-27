@@ -215,6 +215,18 @@ void main() {
     });
   });
 
+  test('the weekly goal reaches the widget and follows new beers', () async {
+    await repo.load();
+    await repo.setWeeklyGoal(goal: 2, weekStartWeekday: DateTime.sunday);
+    expect(bridge.pushes.last.weekGoal, 2);
+    expect(bridge.pushes.last.goalReached, isFalse);
+
+    await repo.add(BeerSize.half);
+    await repo.add(BeerSize.half);
+    expect(bridge.pushes.last.weekCount, 2);
+    expect(bridge.pushes.last.goalReached, isTrue);
+  });
+
   test('an unwritable log surfaces an error instead of throwing', () async {
     await log.append(Beer(id: 'x', ml: 333, at: now));
     // The parent of this path is a regular file, so mkdir must fail.
