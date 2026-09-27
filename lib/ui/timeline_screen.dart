@@ -98,7 +98,7 @@ class TimelineScreen extends StatelessWidget {
                     children: [
                       const Text('THE JOURNEY', style: AppText.label),
                       Text(
-                        repo.beers.isEmpty ? '' : 'tap a beer to remove it',
+                        repo.beers.isEmpty ? '' : 'tap a beer to edit it',
                         style: AppText.mono.copyWith(fontSize: 11),
                       ),
                     ],
@@ -110,7 +110,7 @@ class TimelineScreen extends StatelessWidget {
             JourneyTimeline(
               beers: repo.beers,
               now: clock,
-              onTapBeer: (beer) => _confirmDelete(context, beer),
+              onTapBeer: (beer) => _openBeer(context, beer),
             ),
           ],
         ),
@@ -118,12 +118,22 @@ class TimelineScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _confirmDelete(BuildContext context, Beer beer) async {
+  Future<void> _openBeer(BuildContext context, Beer beer) async {
+    final action = await BeerDetailSheet.show(context, beer);
+    if (!context.mounted) return;
+    switch (action) {
+      case BeerSheetAction.delete:
+        await _delete(context, beer);
+      case BeerSheetAction.changeTime:
+        await _changeTime(context, beer);
+      case BeerSheetAction.keep:
+        return;
+    }
+  }
+
+  Future<void> _delete(BuildContext context, Beer beer) async {
     final repo = context.read<BeerRepository>();
     final messenger = ScaffoldMessenger.of(context);
-    final shouldDelete = await BeerDetailSheet.show(context, beer);
-    if (!shouldDelete) return;
-
     await repo.remove(beer.id);
     messenger
       ..clearSnackBars()
@@ -137,5 +147,58 @@ class TimelineScreen extends StatelessWidget {
           ),
         ),
       );
+  }
+
+  /// Date first, then time, so "the one from last night" is a few taps.
+  Future<void> _changeTime(BuildContext context, Beer beer) async {
+    final repo = context.read<BeerRepository>();
+    final messenger = ScaffoldMessenger.of(context);
+    final clock = now ?? DateTime.now();
+
+    final date = await showDatePicker(
+      context: context,
+      initialDate: beer.at,
+      firstDate: DateTime(2000),
+      lastDate: clock,
+    );
+    if (date == null || !context.mounted) return;
+
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(beer.at),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+        child: child!,
+      ),
+    );
+    if (time == null) return;
+
+    final at =
+        DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    messenger.clearSnackBars();
+    if (at.isAfter(clock)) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text("Can't log a beer in the future", style: AppText.body),
+        ),
+      );
+      return;
+    }
+
+    final previous = await repo.retime(beer.id, at);
+    if (previous == null) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          'Moved to ${formatTime(at)} · ${formatDate(at)}',
+          style: AppText.body,
+        ),
+        action: SnackBarAction(
+          label: 'UNDO',
+          textColor: AppColors.amber,
+          onPressed: () => repo.retime(beer.id, previous.at),
+        ),
+      ),
+    );
   }
 }

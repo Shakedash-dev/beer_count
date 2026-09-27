@@ -138,6 +138,56 @@ void main() {
     expect(repo.beers.single.at, DateTime(2026, 9, 19, 12));
   });
 
+  group('retime', () {
+    test('moves a beer, keeps its id and size, persists and resorts',
+        () async {
+      await repo.load();
+      final first = await repo.addAt(ml: 333, at: DateTime(2026, 9, 20, 18));
+      await repo.addAt(ml: 500, at: DateTime(2026, 9, 20, 19));
+
+      final previous =
+          await repo.retime(first!.id, DateTime(2026, 9, 20, 20, 15));
+
+      expect(previous!.at, DateTime(2026, 9, 20, 18));
+      expect(repo.beers.first.id, first.id);
+      expect(repo.beers.first.ml, 333);
+      expect(repo.beers.first.at, DateTime(2026, 9, 20, 20, 15));
+      final onDisk = (await log.readAll()).beers;
+      expect(onDisk, hasLength(2));
+      expect(
+        onDisk.singleWhere((b) => b.id == first.id).at,
+        DateTime(2026, 9, 20, 20, 15),
+      );
+    });
+
+    test('moving a beer into yesterday updates the widget summary', () async {
+      await repo.load();
+      final beer = await repo.addAt(ml: 500, at: now);
+      expect(bridge.pushes.last.count, 1);
+
+      await repo.retime(beer!.id, DateTime(2026, 9, 19, 23));
+
+      expect(bridge.pushes.last.count, 0);
+    });
+
+    test('refuses a time in the future', () async {
+      await repo.load();
+      final beer = await repo.addAt(ml: 500, at: DateTime(2026, 9, 20, 18));
+
+      final result = await repo.retime(beer!.id, DateTime(2026, 9, 20, 22));
+
+      expect(result, isNull);
+      expect(repo.beers.single.at, DateTime(2026, 9, 20, 18));
+    });
+
+    test('unknown id is a no-op', () async {
+      await repo.load();
+      await repo.addAt(ml: 500, at: DateTime(2026, 9, 20, 18));
+      expect(await repo.retime('nope', DateTime(2026, 9, 20, 19)), isNull);
+      expect(repo.beers.single.at, DateTime(2026, 9, 20, 18));
+    });
+  });
+
   test('an unwritable log surfaces an error instead of throwing', () async {
     await log.append(Beer(id: 'x', ml: 333, at: now));
     // The parent of this path is a regular file, so mkdir must fail.

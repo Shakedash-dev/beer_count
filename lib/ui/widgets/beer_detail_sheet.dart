@@ -4,20 +4,22 @@ import '../../models/beer.dart';
 import '../format.dart';
 import '../theme.dart';
 
-/// Tapping a waypoint opens this. Its only job is to let a mis-tap be undone,
-/// so DELETE is the one action and it is the only red thing on screen.
+enum BeerSheetAction { delete, changeTime, keep }
+
+/// Tapping a waypoint opens this. It fixes mistakes: a mis-tap is deleted, a
+/// beer logged late gets its real time. DELETE stays the only red thing.
 class BeerDetailSheet extends StatelessWidget {
   const BeerDetailSheet({required this.beer, super.key});
 
   final Beer beer;
 
-  static Future<bool> show(BuildContext context, Beer beer) async {
-    final result = await showModalBottomSheet<bool>(
+  static Future<BeerSheetAction> show(BuildContext context, Beer beer) async {
+    final result = await showModalBottomSheet<BeerSheetAction>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => BeerDetailSheet(beer: beer),
     );
-    return result ?? false;
+    return result ?? BeerSheetAction.keep;
   }
 
   @override
@@ -93,7 +95,22 @@ class BeerDetailSheet extends StatelessWidget {
               const Divider(),
               const SizedBox(height: AppSpace.sm),
               TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
+                onPressed: () =>
+                    Navigator.of(context).pop(BeerSheetAction.changeTime),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpace.md),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  'CHANGE TIME',
+                  style: AppText.label.copyWith(color: AppColors.amber),
+                ),
+              ),
+              TextButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(BeerSheetAction.delete),
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: AppSpace.md),
                   shape: RoundedRectangleBorder(
@@ -106,7 +123,8 @@ class BeerDetailSheet extends StatelessWidget {
                 ),
               ),
               TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
+                onPressed: () =>
+                    Navigator.of(context).pop(BeerSheetAction.keep),
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: AppSpace.md),
                 ),

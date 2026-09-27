@@ -194,4 +194,64 @@ void main() {
       expect(repo.beers, hasLength(1));
     });
   });
+
+  group('changing the time of a beer', () {
+    Future<void> openPickers(WidgetTester tester) async {
+      await tester.tap(find.text('18:00'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('CHANGE TIME'));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> typeTime(WidgetTester tester, String h, String m) async {
+      await tester.tap(find.byIcon(Icons.keyboard_outlined));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).at(0), h);
+      await tester.enterText(find.byType(TextField).at(1), m);
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('picking yesterday 23:10 moves it and offers undo',
+        (tester) async {
+      await repo.addAt(ml: 500, at: DateTime(2026, 9, 20, 18));
+      await pump(tester);
+      await openPickers(tester);
+
+      await tester.tap(find.byIcon(Icons.edit_outlined));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), '09/19/2026');
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      await typeTime(tester, '23', '10');
+
+      expect(repo.beers.single.at, DateTime(2026, 9, 19, 23, 10));
+      expect(find.text('Moved to 23:10 · 19 Sep 2026'), findsOneWidget);
+
+      await tester.tap(find.text('UNDO'));
+      await tester.pumpAndSettle();
+      expect(repo.beers.single.at, DateTime(2026, 9, 20, 18));
+    });
+
+    testWidgets('cancelling the date picker changes nothing', (tester) async {
+      await repo.addAt(ml: 500, at: DateTime(2026, 9, 20, 18));
+      await pump(tester);
+      await openPickers(tester);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(repo.beers.single.at, DateTime(2026, 9, 20, 18));
+    });
+
+    testWidgets('a time later than now is refused', (tester) async {
+      await repo.addAt(ml: 500, at: DateTime(2026, 9, 20, 18));
+      await pump(tester);
+      await openPickers(tester);
+      await tester.tap(find.text('OK')); // keep today
+      await tester.pumpAndSettle();
+      await typeTime(tester, '23', '00');
+
+      expect(repo.beers.single.at, DateTime(2026, 9, 20, 18));
+      expect(find.text("Can't log a beer in the future"), findsOneWidget);
+    });
+  });
 }

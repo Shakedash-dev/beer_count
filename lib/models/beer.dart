@@ -62,6 +62,11 @@ class Beer {
 
   BeerSize? get size => BeerSize.fromMl(ml);
 
+  /// Same beer, moved to [at]. The id is kept: it only has to be unique, so
+  /// the timestamp baked into it going stale is harmless.
+  Beer withTime(DateTime at) =>
+      Beer(id: id, ml: ml, at: at.isUtc ? at.toLocal() : at);
+
   double get liters => ml / 1000;
 
   Map<String, Object?> toJsonMap() => <String, Object?>{

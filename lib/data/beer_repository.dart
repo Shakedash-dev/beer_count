@@ -80,6 +80,26 @@ class BeerRepository extends ChangeNotifier {
     await _finish();
   }
 
+  /// Moves an existing beer to [at], for entries logged late. Returns the beer
+  /// as it was before so the caller can undo, or null if nothing changed.
+  /// Times after now are refused.
+  Future<Beer?> retime(String id, DateTime at) async {
+    final index = _beers.indexWhere((b) => b.id == id);
+    if (index < 0 || at.isAfter(_clock())) return null;
+    final previous = _beers[index];
+    final updated = _sorted([..._beers]..[index] = previous.withTime(at));
+    try {
+      await log.rewrite(updated.reversed.toList());
+    } on Object catch (e) {
+      _lastError = '$e';
+      notifyListeners();
+      return null;
+    }
+    _beers = updated;
+    await _finish();
+    return previous;
+  }
+
   Future<void> remove(String id) async {
     final remaining = _beers.where((b) => b.id != id).toList();
     if (remaining.length == _beers.length) return;
